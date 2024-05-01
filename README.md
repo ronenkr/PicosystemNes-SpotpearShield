@@ -2,7 +2,9 @@
 
 
 To Build:
+
 git clone <this_repo>
+
 cd PicosystemNes-SpotpearShield
 mkdir build
 cd build
