@@ -46,7 +46,7 @@ int final_wave[2][735 + 1]; /* 44100 (just in case)/ 60 = 735 samples per sync *
 int volume = 40;
 unsigned int volume_increment = 5;
 #define VOLUMEFRAMES 120   // number of frames the volume is shown
-int showVolume = 0;        // When > 0 volume is shown on screen
+int showVolume = 0;        // When > 0 volume is shown on screen, 0
 char volumeOperator = '+'; // '+' or '-' to indicate if volume is increased or decreased
 #include "font_8x8.h"
 float overdrive = 1.0f; 
@@ -89,6 +89,7 @@ bool saveSettingsAndReboot = false;
 namespace
 {
     static constexpr uintptr_t NES_FILE_ADDR = 0x10110000;         // Location of .nes rom or tar archive with .nes roms
+    //the total size of a regular 2MB pico is  0x10200000 - 0x10110000 = 0xF0000 (983040) free for roms 
     static constexpr uintptr_t NES_BATTERY_SAVE_ADDR = 0x100D0000; // 256K
                                                                    //  = 8K   D0000 - 0D1FFF for persisting some variables after reboot
                                                                    //  = 248K D2000 - 10FFFF for save games (=31 savegames MAX)
@@ -296,24 +297,6 @@ void loadState()
     memcpy(SRAM, reinterpret_cast<void *>(NES_BATTERY_SAVE_ADDR), SRAM_SIZE);
 }
 
-int getbuttons()
-{
-    picosystem::_gpio_get2();
-    return (picosystem::button(picosystem::LEFT) ? GPLEFT : 0) |
-           (picosystem::button(picosystem::RIGHT) ? GPRIGHT : 0) |
-           (picosystem::button(picosystem::UP) ? GPUP : 0) |
-           (picosystem::button(picosystem::DOWN) ? GPDOWN : 0) |
-           (picosystem::button(picosystem::SELECT) ? GPY : 0) |
-           (picosystem::button(picosystem::START) ? GPX : 0) |
-           (picosystem::button(picosystem::A) ? GPA : 0) |
-           (picosystem::button(picosystem::B) ? GPB : 0) |
-           (picosystem::button(picosystem::R) ? GR : 0) |
-           (picosystem::button(picosystem::L) ? GL : 0) |
-           (picosystem::button(picosystem::Y) ? GSTART : 0) |
-           (picosystem::button(picosystem::X) ? GSELECT : 0) |
-           0;
-
-}
 void RomMenu()
 {
     micromenu = false;
@@ -331,7 +314,26 @@ void RomMenu()
     static bool jumptomenu = false;
     static bool bExitOnce = true;
 
- void InfoNES_PadState(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem)
+DWORD getbuttons()
+{
+    picosystem::_gpio_get2();
+    return (picosystem::button(picosystem::LEFT) ? GPLEFT : 0) |
+           (picosystem::button(picosystem::RIGHT) ? GPRIGHT : 0) |
+           (picosystem::button(picosystem::UP) ? GPUP : 0) |
+           (picosystem::button(picosystem::DOWN) ? GPDOWN : 0) |
+           (picosystem::button(picosystem::SELECT) ? GPY : 0) |
+           (picosystem::button(picosystem::START) ? GPX : 0) |
+           (picosystem::button(picosystem::A) ? GPA : 0) |
+           (picosystem::button(picosystem::B) ? GPB : 0) |
+           (picosystem::button(picosystem::R) ? GR : 0) |
+           (picosystem::button(picosystem::L) ? GL : 0) |
+           (picosystem::button(picosystem::Y) ? GSTART : 0) |
+           (picosystem::button(picosystem::X) ? GSELECT : 0) |
+           0;
+
+}
+
+void InfoNES_PadState(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem)
 {
 
     // moved variables outside function body because prevButtons gets initialized to 0 everytime the function is called.
@@ -342,7 +344,7 @@ void RomMenu()
     // static int rapidFireMask = 0;
     // static int rapidFireCounter = 0;
 
-     int v = getbuttons();
+     DWORD v = getbuttons();
     
     /*if(bExitOnce){ //TODO: remove it
     *pdwSystem = 0;
@@ -735,7 +737,7 @@ void __not_in_flash_func(InfoNES_PostDrawLine)(int line, bool frommenu)
         charBuffer[4] = '0'+(prevButtons&GPB!=0);
         charBuffer[5] = '0'+(prevButtons&GPX!=0);
         charBuffer[6] = '0'+(prevButtons&GPY!=0);
-        charBuffer[7] = '0'+(prevButtons&GPUP!=0);
+        charBuffer[7] = '0'+(prevButtons&GR!=0);
         charBuffer[8] = 0;
         DisplayText(charBuffer, line % 8, fpsBuffer, fgc, bgc);
         /*
