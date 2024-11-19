@@ -81,5 +81,5 @@ void InfoNES_PostDrawLine(int line, bool frommenu);
 
 void RomSelect_PreDrawLine(int line);
 
-int getbuttons();
+DWORD getbuttons();
 #endif /* !InfoNES_SYSTEM_H_INCLUDED */

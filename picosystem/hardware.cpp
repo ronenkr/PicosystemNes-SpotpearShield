@@ -36,7 +36,7 @@ namespace picosystem {
     RED = 22, GREEN = 22, BLUE = 22,                  // user rgb led
     CS = 9, SCK = 10 , MOSI  = 11,                       // spi
     VSYNC = 6, DC = 8, LCD_RESET = 12, BACKLIGHT = 7, // screen
-    AUDIO = 20, RX = 21,                                  // audio //speaker out
+    AUDIO = 20/**20*/, RX = 5 /*21 */,                                  // audio //speaker out
     CHARGE_LED = 25, CHARGING = 24, BATTERY_LEVEL = 28 // battery / charging
   };
 
@@ -464,8 +464,9 @@ namespace picosystem {
 #endif
 	
     pwm_init(audio_pwm_slice_number, &audio_pwm_cfg, true);
+    //psg_vol(0xFFFF);
 
-        init_input(LEFT);
+    init_input(LEFT);
     init_input(RIGHT);
     init_input(UP);
     init_input(DOWN);
@@ -479,6 +480,12 @@ namespace picosystem {
     init_input(L);
     init_input(START);
     init_input(SELECT);
+
+    //_start_audio();
+    /*while(true){
+      _play_note(rand()%2000,255);
+      sleep_ms(500);
+    }*/
 
   }
 

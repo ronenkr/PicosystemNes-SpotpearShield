@@ -35,7 +35,7 @@
 #include "gpbuttons.h"
 #include "menu.h"
 
-bool fps_enabled = true;  //TODO: turn off
+bool fps_enabled = false; 
 
 // final wave buffer
 int fw_wr, fw_rd;
@@ -43,10 +43,10 @@ int final_wave[2][735 + 1]; /* 44100 (just in case)/ 60 = 735 samples per sync *
 
 // change volume
 #define FW_VOL_MAX 100
-int volume = 40;
+int volume = 80;
 unsigned int volume_increment = 5;
 #define VOLUMEFRAMES 120   // number of frames the volume is shown
-int showVolume = 0;        // When > 0 volume is shown on screen
+int showVolume = 0;        // When > 0 volume is shown on screen, 0
 char volumeOperator = '+'; // '+' or '-' to indicate if volume is increased or decreased
 #include "font_8x8.h"
 float overdrive = 1.0f; 
@@ -58,7 +58,7 @@ const char* menuStrings[] = { "Exit","Rapid A", "Rapid B","Backlight"};
 uint8_t backlight_value = 100;
 // speaker
 #ifdef SPEAKER_ENABLED
-int mode = 0; // 0= piezo only 1= speaker only 2= both 3= mute all
+int mode = 2; // 0= piezo only 1= speaker only 2= both 3= mute all
 char modeOperator = 'P';
 
 // initialiize an arry of four strings
@@ -69,7 +69,7 @@ int showSpeakerMode = 0;      // When > 0 speaker mode is shown on screen
 #endif
 
 #ifndef SPEAKER_ENABLED
-int mode = 3; // 0= piezo only 1= speaker only 2= both 3= mute all
+int mode = 2; // 0= piezo only 1= speaker only 2= both 3= mute all
 char modeOperator = 'P';
 
 // initialiize an arry of four strings
@@ -89,6 +89,7 @@ bool saveSettingsAndReboot = false;
 namespace
 {
     static constexpr uintptr_t NES_FILE_ADDR = 0x10110000;         // Location of .nes rom or tar archive with .nes roms
+    //the total size of a regular 2MB pico is  0x10200000 - 0x10110000 = 0xF0000 (983040) free for roms 
     static constexpr uintptr_t NES_BATTERY_SAVE_ADDR = 0x100D0000; // 256K
                                                                    //  = 8K   D0000 - 0D1FFF for persisting some variables after reboot
                                                                    //  = 248K D2000 - 10FFFF for save games (=31 savegames MAX)
@@ -296,7 +297,24 @@ void loadState()
     memcpy(SRAM, reinterpret_cast<void *>(NES_BATTERY_SAVE_ADDR), SRAM_SIZE);
 }
 
-int getbuttons()
+void RomMenu()
+{
+    micromenu = false;
+    saveNVRAM(romSelector_.GetCurrentRomIndex(), 'R');
+
+    pwm_set_gpio_level(20, 0);
+
+#ifdef SPEAKER_ENABLED
+    pwm_set_gpio_level(5, 0);
+#endif
+}
+  static DWORD prevButtons = 0;
+    static int rapidFireMask = 0;
+    static int rapidFireCounter = 0;
+    static bool jumptomenu = false;
+    static bool bExitOnce = true;
+
+DWORD getbuttons()
 {
     picosystem::_gpio_get2();
     return (picosystem::button(picosystem::LEFT) ? GPLEFT : 0) |
@@ -314,24 +332,8 @@ int getbuttons()
            0;
 
 }
-void RomMenu()
-{
-    micromenu = false;
-    saveNVRAM(romSelector_.GetCurrentRomIndex(), 'R');
 
-    pwm_set_gpio_level(11, 0);
-
-#ifdef SPEAKER_ENABLED
-    pwm_set_gpio_level(1, 0);
-#endif
-}
-  static DWORD prevButtons = 0;
-    static int rapidFireMask = 0;
-    static int rapidFireCounter = 0;
-    static bool jumptomenu = false;
-    static bool bExitOnce = true;
-
- void InfoNES_PadState(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem)
+void InfoNES_PadState(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem)
 {
 
     // moved variables outside function body because prevButtons gets initialized to 0 everytime the function is called.
@@ -342,7 +344,7 @@ void RomMenu()
     // static int rapidFireMask = 0;
     // static int rapidFireCounter = 0;
 
-     int v = getbuttons();
+     DWORD v = getbuttons();
     
     /*if(bExitOnce){ //TODO: remove it
     *pdwSystem = 0;
@@ -350,7 +352,6 @@ void RomMenu()
 		}
 
     bExitOnce = true;*/
-
 
     ++rapidFireCounter;
     bool reset = jumptomenu = false;
@@ -374,9 +375,9 @@ void RomMenu()
 
     if (pushed & GPX)
     {
-        printf("a %d\n", fps);
+        //printf("a %d\n", fps);
     }
-    if (p1 & GL)
+    if (pushed & GL)
     {
         //if (pushed & GPA)
         {
@@ -457,7 +458,6 @@ void RomMenu()
         if (pushed & GPDOWN)
         {
 #ifdef SPEAKER_ENABLED
-
             mode = (mode + 1) % 4;
             showSpeakerMode = SPEAKERMODEFRAMES;
             saveSettingsAndReboot = true;
@@ -494,7 +494,7 @@ void RomMenu()
 
     prevButtons = v;
 
-    *pdwSystem = reset ? 0 : 0; //PAD_SYS_QUIT
+    *pdwSystem = reset ? PAD_SYS_QUIT : 0; //
 }
 
 void InfoNES_MessageBox(const char *pszMsg, ...)
@@ -694,6 +694,24 @@ void __not_in_flash_func(DisplayText)(const char* charBuffer,int e , WORD* fpsBu
         fpsBuffer += 8;
     }
 }
+
+void DWORDToHexCharArray(DWORD dw, char *hexArray) {
+    // Hexadecimal characters for digits 0-15
+    const char hexDigits[] = "0123456789ABCDEF";
+    
+    // Iterate over each byte in the DWORD (32 bits = 8 hex digits)
+    for (int i = 7; i >= 0; i--) {
+        // Extract the current hex digit (4 bits at a time)
+        unsigned char currentDigit = (dw >> (i * 4)) & 0xF;
+        
+        // Store the corresponding character in the array
+        hexArray[7 - i] = hexDigits[currentDigit];
+    }
+    
+    // Null-terminate the string
+    hexArray[8] = '\0';
+}
+
 void __not_in_flash_func(InfoNES_PostDrawLine)(int line, bool frommenu)
 { 
 #if !defined(NDEBUG)
@@ -728,14 +746,11 @@ void __not_in_flash_func(InfoNES_PostDrawLine)(int line, bool frommenu)
 
         fpsBuffer = lb + 180;
         char charBuffer[9];
+        //DWORDToHexCharArray(prevButtons,charBuffer);
         charBuffer[0] = '0' + (fps / 10);
         charBuffer[1] = '0' + (fps % 10);
-        charBuffer[2] = ' ';
-        charBuffer[3] = '0'+(prevButtons&GPA!=0);
-        charBuffer[4] = '0'+(prevButtons&GPB!=0);
-        charBuffer[5] = '0'+(prevButtons&GPX!=0);
-        charBuffer[6] = '0'+(prevButtons&GPY!=0);
-        charBuffer[7] = '0'+(prevButtons&GPUP!=0);
+        charBuffer[2] = 0;
+       
         charBuffer[8] = 0;
         DisplayText(charBuffer, line % 8, fpsBuffer, fgc, bgc);
         /*
@@ -1002,27 +1017,27 @@ void fw_callback()
                 switch (mode)
                 {
                 case 0: // piezo only
-                    pwm_set_gpio_level(11, pwm_piezo_level_volume);
-                    pwm_set_gpio_level(1, 0);
+                    pwm_set_gpio_level(20, pwm_piezo_level_volume);
+                    pwm_set_gpio_level(5, 0);
                     break;
                 case 1: // speaker only
-                    pwm_set_gpio_level(11, 0);
-                    pwm_set_gpio_level(1, pwm_speaker_level_volume);
+                    pwm_set_gpio_level(20, 0);
+                    pwm_set_gpio_level(5, pwm_speaker_level_volume);
                     break;
                 case 2: // both only
-                    pwm_set_gpio_level(11, pwm_piezo_level_volume);
-                    pwm_set_gpio_level(1, pwm_speaker_level_volume);
+                    pwm_set_gpio_level(20, pwm_piezo_level_volume);
+                    pwm_set_gpio_level(5, pwm_speaker_level_volume);
                     break;
                 case 3: // mute all
-                    pwm_set_gpio_level(11, 0);
-                    pwm_set_gpio_level(1, 0);
+                    pwm_set_gpio_level(20, 0);
+                    pwm_set_gpio_level(5, 0);
                     break;
                 }
             }
             else
             {
-                pwm_set_gpio_level(11, 0);
-                pwm_set_gpio_level(1, 0);
+                pwm_set_gpio_level(20, 0);
+                pwm_set_gpio_level(5, 0);
             }
 #else
 
@@ -1055,12 +1070,12 @@ void fw_callback()
                     pwm_piezo_level_volume = 0;
                    
                 }
-                pwm_set_gpio_level(11, pwm_piezo_level_volume);
+                pwm_set_gpio_level(20, pwm_piezo_level_volume);
                 
             }
             else
             {
-                pwm_set_gpio_level(11, 0);
+                pwm_set_gpio_level(20, 0);
                 
             }
         
@@ -1209,9 +1224,9 @@ int main()
         InfoNES_Main();
         if (jumptomenu)
         {
-            //pwm_set_gpio_level(11, 0);//TODO:
+            pwm_set_gpio_level(20, 0);
 #ifdef SPEAKER_ENABLED
-            //pwm_set_gpio_level(1, 0);//TODO:
+            pwm_set_gpio_level(5, 0);
 #endif //fix sound continue from exit to menu while playing a game. 
             romSelector_.setRomIndex(menu(NES_FILE_ADDR, errorMessage));
         }
