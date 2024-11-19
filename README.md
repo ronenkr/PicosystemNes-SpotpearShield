@@ -18,3 +18,12 @@ make -j4
 
 # Sound
 Sound is PWM available on GPIO20
+
+# Buttons
+
+Select + Start shows menu
+
+Select + A  = Volume UP
+Select + B = Volume DOWN
+
+Select + DOWN = Sound output select (Mute,Piezo, none)
